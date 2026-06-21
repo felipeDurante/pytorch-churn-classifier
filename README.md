@@ -2,6 +2,10 @@
 
 Estrutura-base para desenvolvimento de um projeto de Machine Learning em Python, com separação clara entre código-fonte, dados, modelos, experimentos, testes e documentação.
 
+## Machine Learning Canvas
+
+O planejamento inicial do projeto está documentado no [Machine Learning Canvas (v1.2)](docs/Machine%20Learning%20Canvas%20%28v1.2%29.docx).
+
 ## Estrutura do projeto
 
 ```text
@@ -131,4 +135,3 @@ ruff format .
 ## Sobre o projeto
 
 Este repositório é o ponto de partida para o Tech Challenge. A descrição do problema, a origem dos dados, a variável-alvo, as métricas de avaliação e os resultados serão detalhados conforme o desenvolvimento avançar.
-
