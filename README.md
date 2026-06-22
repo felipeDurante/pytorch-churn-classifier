@@ -94,6 +94,11 @@ jupyter lab
 
 Use notebooks para exploração e experimentação. Código reutilizável e definitivo deve ser movido para `src/projeto_ml/`.
 
+### Análise exploratória
+
+O EDA inicial do dataset Telco Customer Churn está disponível em
+[`notebooks/01_eda_telco_churn.ipynb`](notebooks/01_eda_telco_churn.ipynb).
+
 ## Testes
 
 Execute a suíte:
