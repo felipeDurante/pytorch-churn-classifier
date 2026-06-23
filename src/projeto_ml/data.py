@@ -68,9 +68,15 @@ def load_telco_churn(
         if present:
             dataframe = dataframe.drop(columns=present)
 
-    # Converter colunas textuais de baixa cardinalidade para category facilita memória e codificação
+    # Converter colunas textuais de baixa cardinalidade para category
+    # facilita memória e codificação
     if as_category:
-        text_cols = dataframe.select_dtypes(include=["object", "category", "string"]).columns.tolist()
+        text_cols = (
+            dataframe
+            .select_dtypes(include=["object", "category", "string"])
+            .columns
+            .tolist()
+        )
         # Exclui o target se presente
         text_cols = [c for c in text_cols if c != TARGET_COLUMN]
         for c in text_cols:
@@ -105,7 +111,10 @@ def save_processed(
     Retorna o caminho para o arquivo salvo.
     """
     df = load_telco_churn(
-        raw_path, as_category=as_category, category_threshold=category_threshold, drop_leakage=drop_leakage
+        raw_path,
+        as_category=as_category,
+        category_threshold=category_threshold,
+        drop_leakage=drop_leakage,
     )
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
