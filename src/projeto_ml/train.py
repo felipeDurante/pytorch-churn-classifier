@@ -54,7 +54,7 @@ def train(
     if mlflow is not None:
         mlflow.start_run()
 
-    df = data_mod.load_telco_churn(dataset_path)
+    df = data_mod.load_telco_churn(dataset_path, drop_leakage=True)
     target = data_mod.TARGET_COLUMN
     X_df = df.drop(columns=[target])
     y = df[target].astype(int).to_numpy()
