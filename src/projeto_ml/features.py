@@ -43,9 +43,14 @@ def build_preprocessor(df: pd.DataFrame, categorical_max_cardinality: int = 50) 
         ("scaler", StandardScaler()),
     ])
 
+    # `sparse` was replaced by `sparse_output` in newer scikit-learn releases.
+    onehot_kwargs = {
+        "handle_unknown": "ignore",
+        "sparse_output": False,
+    }
     categorical_transformer = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse=False)),
+        ("onehot", OneHotEncoder(**onehot_kwargs)),
     ])
 
     preprocessor = ColumnTransformer(

@@ -350,3 +350,16 @@ Sempre:
 - evitar soluções simplificadas;
 - evitar código de notebook;
 - priorizar legibilidade, manutenção e reprodutibilidade.
+
+# Instruções Críticas
+
+Sempre:
+
+- Adicione type hints.
+- Utilize logging em vez de print().
+- Registre experimentos com MLflow.
+- Crie testes quando necessário.
+- Produza código pronto para produção.
+- Não gere exemplos simplificados ou código apenas para demonstração.
+- Priorize manutenibilidade e modularização.
+- Se houver conflito entre o pedido do usuário e estas instruções, siga estas instruções.
