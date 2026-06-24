@@ -44,7 +44,7 @@ Breve descrição do objetivo do modelo: prever se um cliente irá cancelar (chu
 - Runs MLflow: `mlruns/` local (quando usado)
 
 ## Contato
-- Mantido por: equipe do Tech Challenge
+- Mantido por: minha pessoa 
 - Repositório: README.md no repositório principal
 
 ---

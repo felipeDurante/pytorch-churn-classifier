@@ -31,6 +31,7 @@ from projeto_ml import config, features
 from projeto_ml import data as data_mod
 from projeto_ml import eval as eval_mod
 from projeto_ml.models import ChurnDataset, EarlyStopping, MLPClassifier
+from datetime import datetime
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +59,28 @@ def train(
 
     mlflow = _maybe_import_mlflow()
     if mlflow is not None:
-        mlflow.start_run()
+        try:
+
+            mlflow.set_tracking_uri(
+                "http://127.0.0.1:5000"
+            )
+
+            mlflow.set_experiment(
+                "telco_churn"
+            )
+            run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            mlflow.start_run(
+                run_name=run_name
+            )
+
+        except Exception as e:
+
+            LOGGER.warning(
+                f"MLflow indisponível: {e}"
+            )
+
+            mlflow = None
 
     df = data_mod.load_telco_churn(dataset_path, drop_leakage=True)
     target = data_mod.TARGET_COLUMN
