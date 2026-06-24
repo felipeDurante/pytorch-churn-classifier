@@ -36,6 +36,10 @@ models/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !models/.gitkeep
+mlflow.db
+mlruns/
+mlartifacts/
+*.pt
 
 # Variáveis de ambiente e logs
 .env

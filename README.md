@@ -1,142 +1,230 @@
-# Projeto Tech Challenge — Machine Learning
+# Tech Challenge — Predição de Churn com Machine Learning
 
-Estrutura-base para desenvolvimento de um projeto de Machine Learning em Python, com separação clara entre código-fonte, dados, modelos, experimentos, testes e documentação.
+## Objetivo
+
+Este projeto tem como objetivo prever a probabilidade de cancelamento (Churn) de clientes de uma operadora de telecomunicações utilizando técnicas de Machine Learning.
+
+A identificação antecipada de clientes com risco de evasão permite ações preventivas de retenção, reduzindo perdas financeiras e aumentando a fidelização dos clientes.
+
+---
+
+## Problema de Negócio
+
+A perda de clientes impacta diretamente a receita da empresa. O objetivo deste projeto é construir um modelo preditivo capaz de identificar clientes com maior probabilidade de cancelamento, permitindo que a empresa direcione campanhas e ações de retenção de forma mais eficiente.
+
+---
+
+## Dataset
+
+**Telco Customer Churn**
+
+Características do dataset:
+
+* Problema: Classificação Binária
+* Variável alvo: Churn
+* Domínio: Telecomunicações
+* Objetivo: Prever cancelamento de clientes
+
+---
 
 ## Machine Learning Canvas
 
-O planejamento inicial do projeto está documentado no [Machine Learning Canvas (v1.2)](docs/Machine%20Learning%20Canvas%20%28v1.2%29.docx).
+O planejamento inicial do projeto está documentado em:
 
-## Estrutura do projeto
+`docs/Machine Learning Canvas (v1.2).docx`
+
+---
+
+## Arquitetura da Solução
+
+Fluxo da solução:
+
+Dados Brutos
+→ EDA
+→ Pré-processamento
+→ Engenharia de Features
+→ Treinamento
+→ Avaliação
+→ MLflow
+→ Modelo Final
+
+---
+
+## Modelos Avaliados
+
+### Baselines
+
+* Dummy Classifier
+* Logistic Regression
+
+### Redes Neurais
+
+* Multi Layer Perceptron (MLP) utilizando PyTorch
+
+---
+
+## Estratégia de Validação
+
+* Stratified K-Fold Cross Validation
+* 5 Folds
+* Seed fixa para reprodutibilidade
+
+---
+
+## Métricas Avaliadas
+
+* Accuracy
+* Precision
+* Recall
+* F1-Score
+* ROC-AUC
+* PR-AUC
+* Cost Saved
+
+---
+
+## Estrutura do Projeto
 
 ```text
 projeto-tech-chalenge/
 ├── data/
-│   ├── raw/                 # Dados originais, sem alterações
-│   └── processed/           # Dados tratados e prontos para modelagem
-├── docs/                    # Documentação complementar
-├── models/                  # Modelos treinados e artefatos
-├── notebooks/               # Análises exploratórias e experimentos
+│   ├── raw/
+│   └── processed/
+├── docs/
+├── models/
+├── notebooks/
 ├── src/
 │   └── projeto_ml/
-│       ├── data.py          # Carregamento e preparação de dados
-│       ├── features.py      # Engenharia de atributos
-│       ├── train.py         # Treinamento do modelo
-│       └── predict.py       # Geração de previsões
-├── tests/                   # Testes automatizados
-├── .gitignore
-├── pyproject.toml
-└── README.md
+├── tests/
+├── README.md
+└── pyproject.toml
 ```
 
-## Pré-requisitos
-
-- Python 3.11 ou superior
-- Git
+---
 
 ## Setup
 
-### 1. Clone o repositório
+### Clone do projeto
 
 ```bash
 git clone <URL_DO_REPOSITORIO>
 cd projeto-tech-chalenge
 ```
 
-### 2. Crie e ative um ambiente virtual
+### Ambiente virtual
 
-No Windows PowerShell:
+Windows:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-No Linux ou macOS:
+Linux/macOS:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Instale o projeto e as dependências
+### Instalação
 
 ```bash
-python -m pip install --upgrade pip
+pip install -U pip
 pip install -e ".[dev]"
 ```
 
-## Dados
-
-Coloque os arquivos originais em `data/raw/`. Dados tratados devem ser gravados em `data/processed/`.
-
-Os arquivos de dados e modelos treinados não são versionados pelo Git, evitando o armazenamento acidental de arquivos grandes ou informações sensíveis. Apenas os diretórios vazios são mantidos no repositório.
+---
 
 ## Execução
 
-O fluxo inicial está dividido em módulos independentes:
+### Treinamento
 
 ```bash
-python -m projeto_ml.data
-python -m projeto_ml.features
 python -m projeto_ml.train
+```
+
+### Predição
+
+```bash
 python -m projeto_ml.predict
 ```
 
-Os módulos são pontos de entrada mínimos e deverão ser adaptados quando a fonte de dados, o problema de negócio, as métricas e o algoritmo forem definidos.
-
-## Notebooks
-
-Inicie o Jupyter Lab com:
-
-```bash
-jupyter lab
-```
-
-Use notebooks para exploração e experimentação. Código reutilizável e definitivo deve ser movido para `src/projeto_ml/`.
-
-### Análise exploratória
-
-O EDA inicial do dataset Telco Customer Churn está disponível em
-[`notebooks/01_eda_telco_churn.ipynb`](notebooks/01_eda_telco_churn.ipynb).
-
-## Testes
-
-Execute a suíte:
+### Testes
 
 ```bash
 pytest
 ```
 
-Com relatório de cobertura:
+---
+
+## MLflow
+
+O projeto utiliza MLflow para:
+
+* Registro de experimentos
+* Versionamento de modelos
+* Armazenamento de métricas
+* Gerenciamento de artefatos
+
+### Iniciar servidor local
 
 ```bash
-pytest --cov=projeto_ml --cov-report=term-missing
+mlflow server ^
+--backend-store-uri sqlite:///mlflow.db ^
+--default-artifact-root ./mlartifacts ^
+--host 127.0.0.1 ^
+--port 5000
 ```
 
-## Qualidade de código
+Interface:
 
-Verifique o código:
-
-```bash
-ruff check .
+```text
+http://127.0.0.1:5000
 ```
 
-Formate o código:
+---
 
-```bash
-ruff format .
-```
+## Notebooks
 
-## Fluxo recomendado
+### EDA
 
-1. Armazenar os dados originais em `data/raw/`.
-2. Explorar e validar os dados em `notebooks/`.
-3. Implementar preparação e engenharia de atributos em `src/projeto_ml/`.
-4. Treinar e avaliar modelos.
-5. Salvar os artefatos aprovados em `models/`.
-6. Criar testes para as regras de transformação e inferência.
-7. Documentar decisões, métricas e limitações em `docs/`.
+`notebooks/01_eda_telco_churn.ipynb`
 
-## Sobre o projeto
+---
 
-Este repositório é o ponto de partida para o Tech Challenge. A descrição do problema, a origem dos dados, a variável-alvo, as métricas de avaliação e os resultados serão detalhados conforme o desenvolvimento avançar.
+## Resultados
+
+Os resultados completos dos experimentos estão documentados em:
+
+`docs/model_evaluation.md`
+
+---
+
+## Tecnologias Utilizadas
+
+* Python
+* Scikit-Learn
+* PyTorch
+* Pandas
+* NumPy
+* Matplotlib
+* Seaborn
+* MLflow
+* Pytest
+
+---
+
+## Próximos Passos
+
+* Hyperparameter Tuning
+* Deploy via API
+* Containerização com Docker
+* Monitoramento de Modelos
+* Automação do Pipeline
+
+---
+
+## Autor
+
+Projeto desenvolvido para o Tech Challenge da Pós-Graduação em Machine Learning.
