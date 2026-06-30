@@ -99,7 +99,8 @@ def compute_cost_analysis(
 
     # Custo total
     total_cost = cost_fn + cost_fp - benefit_tp
-    cost_saved = benefit_tp
+    baseline_cost = (tp + fn) * cost_per_churn
+    cost_saved = baseline_cost - total_cost
 
     return {
         "cost_fn": float(cost_fn),

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.base import clone
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
@@ -30,7 +32,7 @@ from torch.utils.data import DataLoader
 from projeto_ml import config, features
 from projeto_ml import data as data_mod
 from projeto_ml import eval as eval_mod
-from projeto_ml.models import ChurnDataset, EarlyStopping, MLPClassifier
+from projeto_ml.models import ChurnDataset, EarlyStopping, MLPClassifier, save_torch_model
 from datetime import datetime
 
 LOGGER = logging.getLogger(__name__)
@@ -43,6 +45,83 @@ def _maybe_import_mlflow():
         return mlflow
     except Exception:
         return None
+
+
+def _artifact_name(model_name: str, fold: int, suffix: str) -> str:
+    return f"{model_name}/fold_{fold}/{suffix}"
+
+
+def _log_text_artifact(mlflow: Any, artifact_path: str, filename: str, content: str) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        temp_path = Path(tmp_dir) / filename
+        temp_path.write_text(content, encoding="utf-8")
+        mlflow.log_artifact(str(temp_path), artifact_path=artifact_path)
+
+
+def _log_fold_artifacts(
+    mlflow: Any,
+    model_name: str,
+    fold: int,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    metrics_snapshot: dict[str, float],
+) -> None:
+    artifact_base = f"artifacts/{model_name}/fold_{fold}"
+    report = eval_mod.generate_classification_report(
+        y_true,
+        y_pred,
+        model_name=f"{model_name}_fold_{fold}",
+    )
+    confusion_matrix_text = eval_mod.generate_confusion_matrix_text(y_true, y_pred)
+
+    _log_text_artifact(
+        mlflow,
+        artifact_base,
+        f"{model_name}_fold_{fold}_classification_report.txt",
+        report,
+    )
+    _log_text_artifact(
+        mlflow,
+        artifact_base,
+        f"{model_name}_fold_{fold}_confusion_matrix.txt",
+        confusion_matrix_text,
+    )
+
+    model_card = [
+        f"# Model Card - {model_name.upper()} Fold {fold}",
+        "",
+        "## Metrics",
+    ]
+    for metric_name in ("accuracy", "precision", "recall", "f1", "roc_auc", "pr_auc", "cost_saved"):
+        if metric_name in metrics_snapshot:
+            model_card.append(f"- {metric_name}: {metrics_snapshot[metric_name]:.6f}")
+
+    _log_text_artifact(
+        mlflow,
+        artifact_base,
+        f"{model_name}_fold_{fold}_model_card.md",
+        "\n".join(model_card),
+    )
+
+
+def _log_sklearn_model(mlflow: Any, model: Any, artifact_path: str) -> None:
+    try:
+        import mlflow.sklearn as mlflow_sklearn
+    except Exception as exc:
+        LOGGER.warning(f"MLflow sklearn flavor indisponível: {exc}")
+        return
+
+    mlflow_sklearn.log_model(model, artifact_path=artifact_path)
+
+
+def _log_pytorch_model(mlflow: Any, model: nn.Module, artifact_path: str) -> None:
+    try:
+        import mlflow.pytorch as mlflow_pytorch
+    except Exception as exc:
+        LOGGER.warning(f"MLflow pytorch flavor indisponível: {exc}")
+        return
+
+    mlflow_pytorch.log_model(model, artifact_path=artifact_path)
 
 
 def train(
@@ -58,6 +137,7 @@ def train(
     config.set_seed()
 
     mlflow = _maybe_import_mlflow()
+    run = None
     if mlflow is not None:
         try:
 
@@ -70,7 +150,7 @@ def train(
             )
             run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-            mlflow.start_run(
+            run = mlflow.start_run(
                 run_name=run_name
             )
 
@@ -123,8 +203,9 @@ def train(
         X_train, X_val = X_df.iloc[train_idx], X_df.iloc[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
-        X_train_trans = pipeline.fit_transform(X_train)
-        X_val_trans = pipeline.transform(X_val)
+        fold_pipeline = clone(pipeline)
+        X_train_trans = fold_pipeline.fit_transform(X_train)
+        X_val_trans = fold_pipeline.transform(X_val)
 
         # Train and evaluate requested models for this fold
         for model_name in models:
@@ -156,6 +237,13 @@ def train(
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
+                if mlflow is not None:
+                    _log_fold_artifacts(mlflow, model_name, fold, y_val, y_pred, fold_scores)
+                    _log_sklearn_model(
+                        mlflow,
+                        clf,
+                        _artifact_name(model_name, fold, "model"),
+                    )
                 # LOGGER.info(
                 #     "fold_metrics",
                 #     extra={"fold": fold, "model": model_name, **fold_scores},
@@ -189,6 +277,13 @@ def train(
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
+                if mlflow is not None:
+                    _log_fold_artifacts(mlflow, model_name, fold, y_val, y_pred, fold_scores)
+                    _log_sklearn_model(
+                        mlflow,
+                        clf,
+                        _artifact_name(model_name, fold, "model"),
+                    )
                 # LOGGER.info(
                 #     "fold_metrics",
                 #     extra={"fold": fold, "model": model_name, **fold_scores},
@@ -200,6 +295,7 @@ def train(
                     y_train,
                     X_val_trans,
                     y_val,
+                    model_path=Path("models/best_mlp.pt"),
                     epochs=50,
                     batch_size=32,
                     learning_rate=0.001,
@@ -222,6 +318,13 @@ def train(
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
+                if mlflow is not None:
+                    _log_fold_artifacts(mlflow, model_name, fold, y_val, y_pred, fold_scores)
+                    _log_pytorch_model(
+                        mlflow,
+                        result["model"],
+                        _artifact_name(model_name, fold, "model"),
+                    )
                 # LOGGER.info(
                 #     "fold_metrics",
                 #     extra={"fold": fold, "model": model_name, **fold_scores},
@@ -244,26 +347,6 @@ def train(
 
     joblib.dump(full_pipeline, out_path)
 
-    # Log results to MLflow if available
-    if mlflow is not None:
-        mlflow.log_param("model_type", "logistic_regression")
-        mlflow.set_tag("dataset_digest", dataset_digest)
-        mlflow.log_param("metric", metric)
-        mlflow.log_param("cost_per_churn", float(cost_per_churn))
-        mlflow.log_param("intervention_success", float(intervention_success))
-
-        # aggregate metrics per model
-        metrics_to_log: dict[str, float] = {}
-        for k, v in metrics.items():
-            try:
-                metrics_to_log[f"{k}_mean"] = float(np.nanmean(v))
-            except Exception:
-                metrics_to_log[f"{k}_mean"] = float("nan")
-
-        mlflow.log_metrics(metrics_to_log)
-        mlflow.log_artifact(str(out_path))
-        mlflow.end_run()
-   
     metrics_mean = {
         k: float(np.nanmean(v))
         for k, v in metrics.items()
@@ -286,6 +369,55 @@ def train(
             f"{metric_name}: {metric_value:.6f}"
         )
 
+    # Log results to MLflow if available
+    if mlflow is not None:
+        mlflow.log_param("model_type", "logistic_regression")
+        mlflow.set_tag("dataset_digest", dataset_digest)
+        mlflow.log_param("metric", metric)
+        mlflow.log_param("cost_per_churn", float(cost_per_churn))
+        mlflow.log_param("intervention_success", float(intervention_success))
+
+        metrics_to_log: dict[str, float] = {}
+        for k, v in metrics.items():
+            try:
+                metrics_to_log[f"{k}_mean"] = float(np.nanmean(v))
+            except Exception:
+                metrics_to_log[f"{k}_mean"] = float("nan")
+
+        mlflow.log_metrics(metrics_to_log)
+        _log_sklearn_model(mlflow, full_pipeline, "final_model")
+        mlflow.log_artifact(str(out_path))
+
+        summary_lines = [
+            "# Model Card - Telco Churn",
+            "",
+            f"- model_type: logistic_regression",
+            f"- metric: {metric}",
+            f"- cost_per_churn: {float(cost_per_churn):.2f}",
+            f"- intervention_success: {float(intervention_success):.2f}",
+            "",
+            "## Mean Metrics",
+        ]
+        for metric_name, metric_value in sorted(metrics_mean.items()):
+            summary_lines.append(f"- {metric_name}: {metric_value:.6f}")
+
+        _log_text_artifact(
+            mlflow,
+            "artifacts/summary",
+            "model_card.md",
+            "\n".join(summary_lines),
+        )
+
+        try:
+            mlflow.register_model(
+                model_uri=f"runs:/{run.info.run_id}/final_model",
+                name="telco_churn_final_model",
+            )
+        except Exception as exc:
+            LOGGER.warning(f"MLflow model registry indisponível: {exc}")
+
+        mlflow.end_run()
+
     return {
         "model_path": str(out_path),
         "metrics": metrics,
@@ -303,6 +435,7 @@ def train_mlp_fold(
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
+    model_path: str | Path = Path("models/best_mlp.pt"),
     epochs: int = 50,
     batch_size: int = 32,
     learning_rate: float = 0.001,
@@ -356,7 +489,7 @@ def train_mlp_fold(
 
     # Early stopping
     early_stop = EarlyStopping(
-        patience=patience, model_path=Path("models/best_mlp.pt")
+        patience=patience, model_path=model_path
     )
 
     # Treinar
@@ -409,6 +542,7 @@ def train_mlp_fold(
 
     # Carrega melhor modelo
     early_stop.load_best_model(model)
+    save_torch_model(model, model_path)
     model.eval()
 
     # Compute final metrics
