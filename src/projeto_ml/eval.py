@@ -99,7 +99,7 @@ def compute_cost_analysis(
 
     # Custo total
     total_cost = cost_fn + cost_fp - benefit_tp
-    cost_saved = benefit_tp - (tp * intervention_cost)
+    cost_saved = benefit_tp
 
     return {
         "cost_fn": float(cost_fn),

@@ -37,23 +37,25 @@ def main() -> None:
     )
 
     # Exibir resultados
-    metrics = result["metrics"]
+    metrics_mean = result["metrics_mean"]
+    metrics_std = result["metrics_std"]
     LOGGER.info("Métricas por modelo:")
-    for key, value in sorted(metrics.items()):
+    for key, value in sorted(metrics_mean.items()):
         LOGGER.info(f"  {key}: {value:.6f}")
 
     # Salvar resultado
     df_results = pd.DataFrame(
         [
             {
-                "Model": model,
-                "Metric": metric,
-                "Value": value,
+                "Metric": metric_name,
+                "Mean": mean_value,
+                "Std": metrics_std.get(metric_name, 0.0),
             }
-            for model, metrics_list in metrics.items()
-            for metric, value in [metrics_list]
+            for metric_name, mean_value in metrics_mean.items()
         ]
     )
+
+    df_results.head()
 
     output_path = Path("models/comparison_results.csv")
     df_results.to_csv(output_path, index=False)

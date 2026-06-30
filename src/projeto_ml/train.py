@@ -102,21 +102,21 @@ def train(
 
     metrics: dict[str, list[float]] = {}
 
-    def _score_fold(y_true, y_pred, y_proba) -> dict[str, float]:
-        out: dict[str, float] = {}
-        out["f1"] = float(f1_score(y_true, y_pred))
-        try:
-            out["roc_auc"] = float(roc_auc_score(y_true, y_proba))
-        except Exception:
-            out["roc_auc"] = float("nan")
-        try:
-            out["pr_auc"] = float(average_precision_score(y_true, y_proba))
-        except Exception:
-            out["pr_auc"] = float("nan")
-        # business metric: custo economizado assumindo apenas intervenções sobre TP
-        tp = int(((y_true == 1) & (y_pred == 1)).sum())
-        out["cost_saved"] = float(tp * cost_per_churn * intervention_success)
-        return out
+    # def _score_fold(y_true, y_pred, y_proba) -> dict[str, float]:
+    #     out: dict[str, float] = {}
+    #     out["f1"] = float(f1_score(y_true, y_pred))
+    #     try:
+    #         out["roc_auc"] = float(roc_auc_score(y_true, y_proba))
+    #     except Exception:
+    #         out["roc_auc"] = float("nan")
+    #     try:
+    #         out["pr_auc"] = float(average_precision_score(y_true, y_proba))
+    #     except Exception:
+    #         out["pr_auc"] = float("nan")
+    #     # business metric: custo economizado assumindo apenas intervenções sobre TP
+    #     tp = int(((y_true == 1) & (y_pred == 1)).sum())
+    #     out["cost_saved"] = float(tp * cost_per_churn * intervention_success)
+    #     return out
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(X_df, y), start=1):
         LOGGER.info("start_fold", extra={"fold": fold})
@@ -139,14 +139,27 @@ def train(
                         y_proba = clf.decision_function(X_val_trans)
                     except Exception:
                         y_proba = y_pred
-                fold_scores = _score_fold(y_val, y_pred, y_proba)
+                # fold_scores = _score_fold(y_val, y_pred, y_proba)
+                fold_scores = eval_mod.compute_metrics(
+                    y_val,
+                    y_pred,
+                    y_proba,
+                )
+                cost_analysis = eval_mod.compute_cost_analysis(
+                    y_val,
+                    y_pred,
+                    cost_per_churn=cost_per_churn,
+                    intervention_success=intervention_success,
+                )
+                fold_scores.update(cost_analysis)
+                
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
-                LOGGER.info(
-                    "fold_metrics",
-                    extra={"fold": fold, "model": model_name, **fold_scores},
-                )
+                # LOGGER.info(
+                #     "fold_metrics",
+                #     extra={"fold": fold, "model": model_name, **fold_scores},
+                # )
 
             elif model_name == "logistic":
                 clf = LogisticRegression(max_iter=1000, random_state=config.SEED)
@@ -159,14 +172,27 @@ def train(
                         y_proba = clf.decision_function(X_val_trans)
                     except Exception:
                         y_proba = y_pred
-                fold_scores = _score_fold(y_val, y_pred, y_proba)
+                fold_scores = eval_mod.compute_metrics(
+                    y_val,
+                    y_pred,
+                    y_proba,
+                )
+                cost_analysis = eval_mod.compute_cost_analysis(
+                    y_val,
+                    y_pred,
+                    cost_per_churn=cost_per_churn,
+                    intervention_success=intervention_success,
+                )
+
+                fold_scores.update(cost_analysis)
+
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
-                LOGGER.info(
-                    "fold_metrics",
-                    extra={"fold": fold, "model": model_name, **fold_scores},
-                )
+                # LOGGER.info(
+                #     "fold_metrics",
+                #     extra={"fold": fold, "model": model_name, **fold_scores},
+                # )
 
             elif model_name == "mlp":
                 result = train_mlp_fold(
@@ -183,14 +209,23 @@ def train(
                 )
                 y_pred = result["y_pred"]
                 y_proba = result["y_proba"]
-                fold_scores = _score_fold(y_val, y_pred, y_proba)
+                fold_scores = result["metrics"]
+                cost_analysis = eval_mod.compute_cost_analysis(
+                    y_val,
+                    y_pred,
+                    cost_per_churn=cost_per_churn,
+                    intervention_success=intervention_success,
+                )
+
+                fold_scores.update(cost_analysis)
+                
                 for k, v in fold_scores.items():
                     metrics_key = f"{model_name}_{k}"
                     metrics.setdefault(metrics_key, []).append(float(v))
-                LOGGER.info(
-                    "fold_metrics",
-                    extra={"fold": fold, "model": model_name, **fold_scores},
-                )
+                # LOGGER.info(
+                #     "fold_metrics",
+                #     extra={"fold": fold, "model": model_name, **fold_scores},
+                # )
 
             else:
                 raise ValueError(f"Unknown model: {model_name}")
@@ -228,11 +263,39 @@ def train(
         mlflow.log_metrics(metrics_to_log)
         mlflow.log_artifact(str(out_path))
         mlflow.end_run()
+   
+    metrics_mean = {
+        k: float(np.nanmean(v))
+        for k, v in metrics.items()
+    }
+    LOGGER.info("=== Mean Metrics ===")
+
+    for metric_name, metric_value in sorted(metrics_mean.items()):
+        LOGGER.info(
+            f"{metric_name}: {metric_value:.6f}"
+        )
+
+    metrics_std = {
+        k: float(np.nanstd(v))
+        for k, v in metrics.items()
+    }
+    LOGGER.info("=== Std Metrics ===")
+
+    for metric_name, metric_value in sorted(metrics_std.items()):
+        LOGGER.info(
+            f"{metric_name}: {metric_value:.6f}"
+        )
 
     return {
         "model_path": str(out_path),
-        "metrics": {k: float(np.nanmean(v)) for k, v in metrics.items()},
+        "metrics": metrics,
+        "metrics_mean": metrics_mean,
+        "metrics_std": metrics_std
     }
+    # return {
+    #     "model_path": str(out_path),
+    #     "metrics": {k: float(np.nanmean(v)) for k, v in metrics.items()},
+    # }
 
 
 def train_mlp_fold(
