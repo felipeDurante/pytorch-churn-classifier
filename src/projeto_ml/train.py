@@ -48,7 +48,7 @@ def _maybe_import_mlflow():
 
 
 def _artifact_name(model_name: str, fold: int, suffix: str) -> str:
-    return f"{model_name}/fold_{fold}/{suffix}"
+    return f"{model_name}_fold_{fold}_{suffix}"
 
 
 def _log_text_artifact(mlflow: Any, artifact_path: str, filename: str, content: str) -> None:
@@ -111,7 +111,11 @@ def _log_sklearn_model(mlflow: Any, model: Any, artifact_path: str) -> None:
         LOGGER.warning(f"MLflow sklearn flavor indisponível: {exc}")
         return
 
-    mlflow_sklearn.log_model(model, artifact_path=artifact_path)
+    mlflow_sklearn.log_model(
+        model,
+        artifact_path=artifact_path,
+        serialization_format="cloudpickle",
+    )
 
 
 def _log_pytorch_model(mlflow: Any, model: nn.Module, artifact_path: str) -> None:
@@ -121,7 +125,11 @@ def _log_pytorch_model(mlflow: Any, model: nn.Module, artifact_path: str) -> Non
         LOGGER.warning(f"MLflow pytorch flavor indisponível: {exc}")
         return
 
-    mlflow_pytorch.log_model(model, artifact_path=artifact_path)
+    mlflow_pytorch.log_model(
+        model,
+        artifact_path=artifact_path,
+        serialization_format="pickle",
+    )
 
 
 def train(
@@ -148,13 +156,17 @@ def train(
             mlflow.set_experiment(
                 "telco_churn"
             )
+
+            if mlflow.active_run() is not None:
+                mlflow.end_run()
+
             run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
             run = mlflow.start_run(
                 run_name=run_name
             )
 
-        except Exception as e:
+        except mlflow.MlflowException as e:
 
             LOGGER.warning(
                 f"MLflow indisponível: {e}"

@@ -1,10 +1,12 @@
 """FastAPI app para inferência do modelo salvo."""
 from __future__ import annotations
 
+import logging
+import time
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from projeto_ml.predict import load_model, predict
@@ -12,6 +14,25 @@ from projeto_ml.predict import load_model, predict
 MODEL_PATH = Path("models/baseline_pipeline.joblib")
 
 app = FastAPI(title="Telco Churn Inference API")
+LOGGER = logging.getLogger(__name__)
+
+
+@app.middleware("http")
+async def latency_middleware(request: Request, call_next) -> Response:
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    LOGGER.info(
+        "request_completed",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round(duration_ms, 2),
+        },
+    )
+    response.headers["X-Process-Time-ms"] = f"{duration_ms:.2f}"
+    return response
 
 
 class PredictRequest(BaseModel):
@@ -62,6 +83,12 @@ class PredictResponse(BaseModel):
     probability: float
 
 
+class HealthResponse(BaseModel):
+    status: str
+    model_loaded: bool
+    model_path: str
+
+
 def _normalize_numerics(df: pd.DataFrame) -> pd.DataFrame:
     numeric_columns = [
         "Count",
@@ -99,6 +126,16 @@ def load():
     if not MODEL_PATH.exists():
         raise RuntimeError("Modelo não encontrado, treine o modelo antes de subir a API")
     app.state.model = load_model(MODEL_PATH)
+    LOGGER.info("model_loaded", extra={"model_path": str(MODEL_PATH)})
+
+
+@app.get("/health", response_model=HealthResponse)
+def health():
+    return HealthResponse(
+        status="ok",
+        model_loaded=hasattr(app.state, "model"),
+        model_path=str(MODEL_PATH),
+    )
 
 
 @app.post("/predict", response_model=list[PredictResponse])
@@ -115,5 +152,7 @@ def infer(req: PredictRequest):
         pred_val = int(r.prediction)
         prob_val = float(r.probability)
         results.append(PredictResponse(prediction=pred_val, probability=prob_val))
+
+    LOGGER.info("prediction_completed", extra={"records": len(results)})
 
     return results
