@@ -18,6 +18,35 @@ from torch.utils.data import Dataset
 LOGGER = logging.getLogger(__name__)
 
 
+def save_torch_model(model: nn.Module, path: str | Path) -> Path:
+    """Salva o state_dict de um modelo PyTorch em disco.
+
+    Args:
+        model: Modelo PyTorch a ser salvo.
+        path: Caminho de destino.
+
+    Returns:
+        Caminho normalizado do arquivo salvo.
+    """
+    model_path = Path(path)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), model_path)
+    LOGGER.info(f"Saved PyTorch model to {model_path}")
+    return model_path
+
+
+def load_torch_model(model: nn.Module, path: str | Path) -> None:
+    """Carrega o state_dict de um modelo PyTorch a partir de disco.
+
+    Args:
+        model: Modelo PyTorch que receberá os pesos.
+        path: Caminho do checkpoint.
+    """
+    model_path = Path(path)
+    model.load_state_dict(torch.load(model_path, weights_only=True))
+    LOGGER.info(f"Loaded PyTorch model from {model_path}")
+
+
 class ChurnDataset(Dataset):
     """Dataset customizado para dados de churn em PyTorch.
 
@@ -224,8 +253,7 @@ class EarlyStopping:
         Args:
             model: Modelo PyTorch a salvar.
         """
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(model.state_dict(), self.model_path)
+        save_torch_model(model, self.model_path)
         LOGGER.info(f"EarlyStopping: saved best model to {self.model_path}")
 
     def load_best_model(self, model: nn.Module) -> None:
@@ -235,7 +263,7 @@ class EarlyStopping:
             model: Modelo PyTorch para carregar state_dict.
         """
         if self.model_path.exists():
-            model.load_state_dict(torch.load(self.model_path, weights_only=True))
+            load_torch_model(model, self.model_path)
             LOGGER.info(f"EarlyStopping: loaded best model from {self.model_path}")
         else:
             LOGGER.warning(f"EarlyStopping: checkpoint not found at {self.model_path}")

@@ -46,9 +46,9 @@ Rede neural feedforward treinada utilizando PyTorch com Early Stopping e valida�
 
 | Modelo              | F1        | ROC-AUC   | PR-AUC    | Cost Saved |
 | ------------------- | --------- | --------- | --------- | ---------- |
-| Dummy               | Preencher | Preencher | Preencher | Preencher  |
-| Logistic Regression | Preencher | Preencher | Preencher | Preencher  |
-| MLP                 | Preencher | Preencher | Preencher | Preencher  |
+| Dummy               | 0.0000    | 0.5000    | 0.2654    | 0.00       |
+| Logistic Regression | 0.6051    | 0.8474    | 0.6485    | 21954.00   |
+| MLP                 | 0.6230    | 0.8525    | 0.6623    | 23370.00   |
 
 ---
 
@@ -62,7 +62,7 @@ ROC-AUC
 
 Cost Saved
 
-Descrever qual modelo apresentou melhor desempenho e justificar a escolha.
+O MLP foi o melhor modelo consolidado, com maior ROC-AUC, maior PR-AUC e maior Cost Saved médio. A Logistic Regression segue como baseline forte e mais simples, mas ficou abaixo do MLP nos critérios principais.
 
 ---
 
@@ -98,6 +98,8 @@ Artefatos registrados:
 * Parâmetros
 * Gráficos de comparação
 
+Ver também [docs/experiments.md](docs/experiments.md) para a documentação operacional do tracking.
+
 ---
 
 ## Evidências
@@ -106,19 +108,19 @@ Inserir capturas de tela:
 
 ### Dashboard do MLflow
 
-Imagem aqui
+Inserir captura do dashboard apontando runs, métricas e artefatos registrados.
 
 ### Comparação de Métricas
 
-Imagem aqui
+Inserir gráfico comparando os três modelos avaliados.
 
 ### Curvas ROC
 
-Imagem aqui
+Inserir curvas ROC dos modelos avaliados.
 
 ### Curvas Precision-Recall
 
-Imagem aqui
+Inserir curvas Precision-Recall dos modelos avaliados.
 
 ---
 
@@ -126,7 +128,7 @@ Imagem aqui
 
 Descrever:
 
-* Melhor modelo encontrado.
-* Benefícios para o negócio.
-* Limitações da solução.
-* Próximos passos.
+* Melhor modelo encontrado: MLP.
+* Benefícios para o negócio: maior capacidade de capturar churn com melhor equilíbrio entre recall e precisão.
+* Limitações da solução: dependência da qualidade do dataset histórico e sensibilidade a drift.
+* Próximos passos: validar em dados mais recentes, revisar threshold de decisão e publicar a API em ambiente controlado.
