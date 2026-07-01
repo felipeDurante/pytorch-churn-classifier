@@ -48,6 +48,14 @@ Dados Brutos
 → MLflow
 → Modelo Final
 
+### Deploy escolhido
+
+A arquitetura de deploy escolhida é **real-time** com FastAPI.
+
+**Justificativa:** a API atende requisições individuais de inferência com baixa latência, permitindo integração direta com sistemas operacionais. O batch é mais adequado para scoring periódico em massa, mas não é o cenário principal deste projeto.
+
+Mais detalhes em [docs/deployment_architecture.md](docs/deployment_architecture.md).
+
 ---
 
 ## Modelos Avaliados
@@ -100,6 +108,32 @@ projeto-tech-chalenge/
 └── pyproject.toml
 ```
 
+## Documentação Técnica
+
+### Arquitetura
+
+Visão geral da solução, fluxo de treino, empacotamento e deploy:
+
+[docs/architecture.md](docs/architecture.md)
+
+### API
+
+Especificação dos endpoints, payloads, respostas e tratamento de erros:
+
+[docs/api.md](docs/api.md)
+
+### Experimentos e MLflow
+
+Registro dos experimentos, parâmetros, métricas e artefatos:
+
+[docs/experiments.md](docs/experiments.md)
+
+### Avaliação dos modelos
+
+Resultados consolidados, comparação entre modelos e critério de escolha:
+
+[docs/model_evaluation.md](docs/model_evaluation.md)
+
 ---
 
 ## Setup
@@ -134,6 +168,15 @@ pip install -U pip
 pip install -e ".[dev]"
 ```
 
+### Instalação limpa do zero
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
+```
+
 ---
 
 ## Execução
@@ -156,6 +199,21 @@ python -m projeto_ml.predict
 pytest
 ```
 
+### Lint
+
+```bash
+ruff check .
+ruff format .
+```
+
+### Com `make`
+
+```bash
+make lint
+make test
+make run
+```
+
 ---
 
 ## MLflow
@@ -166,6 +224,8 @@ O projeto utiliza MLflow para:
 * Versionamento de modelos
 * Armazenamento de métricas
 * Gerenciamento de artefatos
+
+Detalhes operacionais e estrutura de logging estão em [docs/experiments.md](docs/experiments.md).
 
 ### Iniciar servidor local
 
@@ -191,6 +251,10 @@ http://127.0.0.1:5000
 
 `notebooks/01_eda_telco_churn.ipynb`
 
+### Comparação de modelos
+
+`notebooks/02_model_comparison.ipynb`
+
 ---
 
 ## Resultados
@@ -198,6 +262,31 @@ http://127.0.0.1:5000
 Os resultados completos dos experimentos estão documentados em:
 
 `docs/model_evaluation.md`
+
+Resumo dos resultados consolidados:
+
+* Melhor ROC-AUC: MLP
+* Melhor PR-AUC: MLP
+* Maior Cost Saved: MLP
+* Melhor baseline linear: Logistic Regression
+
+## Model Card
+
+Detalhes do modelo, limitações, vieses e cenários de falha:
+
+`docs/Model_Card.md`
+
+## API
+
+Especificação dos endpoints e do contrato de inferência:
+
+`docs/api.md`
+
+## Monitoramento
+
+Plano de métricas, alertas e resposta a incidentes:
+
+`docs/monitoring_plan.md`
 
 ---
 
@@ -218,7 +307,6 @@ Os resultados completos dos experimentos estão documentados em:
 ## Próximos Passos
 
 * Hyperparameter Tuning
-* Deploy via API
 * Containerização com Docker
 * Monitoramento de Modelos
 * Automação do Pipeline
@@ -227,4 +315,4 @@ Os resultados completos dos experimentos estão documentados em:
 
 ## Autor
 
-Projeto desenvolvido para o Tech Challenge da Pós-Graduação em Machine Learning.
+Projeto desenvolvido por Luiz Felipe Durante para o Tech Challenge da Pós-Graduação em Machine Learning.
